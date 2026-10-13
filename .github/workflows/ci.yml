@@ -28,7 +28,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Executar testes
-        run: pytest -q
+        run: python -m pytest -q
 
   build:
     name: Build e smoke test Docker
