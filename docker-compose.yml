@@ -1,0 +1,18 @@
+services:
+  api:
+    build: .
+    container_name: ci-docker-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - api_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  api_data:
+

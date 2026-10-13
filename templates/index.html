@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Painel para testar a API CRUD ci-docker-api" />
+    <title>Painel CRUD | CI Docker API</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Página inicial">
+          <span class="brand-mark">&lt;/&gt;</span>
+          <span>CI Docker API</span>
+        </a>
+        <div class="api-status"><span class="status-dot"></span> API online</div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">ESTUDO GUIADO 01 · CRUD</p>
+            <h1>Painel CRUD</h1>
+            <p class="hero-copy">Crie, consulte, atualize e exclua itens da API em uma única tela.</p>
+          </div>
+          <div class="hero-chip"><span>●</span> SQLite conectado</div>
+        </section>
+
+        <section class="metrics" aria-label="Resumo dos registros">
+          <div class="metric-card"><span class="metric-label">Total de itens</span><strong id="total-items">0</strong></div>
+          <div class="metric-card"><span class="metric-label">Concluídos</span><strong id="completed-items">0</strong></div>
+          <div class="metric-card"><span class="metric-label">Em andamento</span><strong id="progress-items">0</strong></div>
+          <div class="metric-card accent"><span class="metric-label">Endpoint</span><strong>/api/items</strong></div>
+        </section>
+
+        <section class="workspace">
+          <div class="panel form-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker" id="form-kicker">NOVO REGISTRO</p>
+                <h2 id="form-title">Adicionar item</h2>
+              </div>
+              <span class="operation-badge" id="operation-badge">POST</span>
+            </div>
+
+            <form id="item-form">
+              <input type="hidden" id="item-id" />
+              <label for="item-name">Nome do item <span>*</span></label>
+              <input id="item-name" name="name" type="text" placeholder="Ex.: Publicar a aplicação" maxlength="100" required />
+
+              <label for="item-description">Descrição</label>
+              <textarea id="item-description" name="description" rows="5" placeholder="Explique o que precisa ser feito..." maxlength="300"></textarea>
+
+              <label for="item-status">Status</label>
+              <select id="item-status" name="status">
+                <option value="Pendente">Pendente</option>
+                <option value="Em andamento">Em andamento</option>
+                <option value="Concluído">Concluído</option>
+              </select>
+
+              <div class="form-actions">
+                <button class="button primary" type="submit" id="save-button">Adicionar item</button>
+                <button class="button ghost hidden" type="button" id="cancel-button">Cancelar edição</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel list-panel">
+            <div class="panel-heading list-heading">
+              <div>
+                <p class="panel-kicker">GET /api/items</p>
+                <h2>Itens cadastrados</h2>
+              </div>
+              <button class="refresh-button" id="refresh-button" type="button" title="Atualizar lista">↻ Atualizar</button>
+            </div>
+            <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+            <div id="items-list" class="items-list" aria-live="polite"></div>
+            <div id="empty-state" class="empty-state hidden">
+              <div class="empty-icon">＋</div>
+              <h3>Nenhum item por aqui</h3>
+              <p>Use o formulário ao lado para criar o primeiro registro.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>API REST · Flask · SQLite · Docker</footer>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
