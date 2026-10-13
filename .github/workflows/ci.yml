@@ -60,11 +60,33 @@ jobs:
         if: always()
         run: docker rm --force ci-docker-api
 
+  check-deploy:
+    name: Verificar credenciais do Docker Hub
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+
+    steps:
+      - name: Verificar secrets
+        id: check
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [[ -n "$DOCKERHUB_USERNAME" && -n "$DOCKERHUB_TOKEN" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy ignorado::Configure DOCKERHUB_USERNAME e DOCKERHUB_TOKEN para publicar a imagem."
+          fi
+
   deploy:
     name: Publicar imagem no Docker Hub
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, check-deploy]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check-deploy.outputs.ready == 'true'
 
     steps:
       - name: Baixar o código

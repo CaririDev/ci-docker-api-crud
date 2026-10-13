@@ -73,5 +73,5 @@ O arquivo `.github/workflows/ci.yml` é executado em cada `push` e `pull request
 3. Inicia um container e verifica o endpoint `/health`.
 4. Na branch `main`, publica a imagem no Docker Hub quando os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` estão configurados.
 
-Para configurar o deploy, crie esses dois secrets no repositório do GitHub. A imagem será publicada como `SEU_USUARIO/ci-docker-api` no Docker Hub.
+Para configurar o deploy, abra `Settings > Secrets and variables > Actions` no repositório e crie os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN`. A imagem será publicada como `SEU_USUARIO/ci-docker-api` no Docker Hub. Sem esses secrets, os testes e o build continuam funcionando e o deploy é ignorado.
 
