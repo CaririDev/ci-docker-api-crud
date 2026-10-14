@@ -2,7 +2,10 @@ ESTUDO GUIADO 01
 PIPELINE CI: INTEGRAÇÃO CONTÍNUA, TESTES E DEPLOY COM DOCKER
 
 Disciplina: Integração de Sistemas
-Grupo: [preencher nomes dos integrantes]
+Grupo: José Junio de Souza Matias - Matrícula: 2025014028
+José Railson Leite da Silva - Matrícula: 2025019392
+Marcos Felipe Ferreira Duarte - Matrícula : 2025014117
+
 Repositório: https://github.com/CaririDev/ci-docker-api-crud
 
 
@@ -163,25 +166,4 @@ As principais etapas são:
    configurados e a execução ocorrer na branch main.
 
 
-6. EVIDÊNCIAS PARA O VÍDEO
 
-Os itens abaixo devem ser demonstrados na aba Actions do GitHub e incluídos na
-gravação:
-
-[ ] Execução que falhou após a introdução proposital de um bug na soma.
-[ ] Log do Pytest mostrando o teste com erro.
-[ ] Correção do bug e novo push.
-[ ] Execução corrigida com todos os jobs verdes.
-[ ] Explicação da rota /api/soma e do teste correspondente.
-[ ] Participação de todos os integrantes do grupo.
-
-O bug proposital deve ser corrigido depois da demonstração. O repositório deve
-permanecer com o código correto e com o pipeline verde ao final da entrega.
-
-
-7. CONCLUSÃO
-
-A prática demonstra o fluxo de Integração Contínua: cada alteração no código
-passa por validação estática, testes automatizados e construção de uma imagem
-Docker. Com isso, erros são identificados antes da entrega e o mesmo artefato
-testado pode ser levado para um ambiente de execução.
