@@ -1,0 +1,187 @@
+ESTUDO GUIADO 01
+PIPELINE CI: INTEGRAÇÃO CONTÍNUA, TESTES E DEPLOY COM DOCKER
+
+Disciplina: Integração de Sistemas
+Grupo: [preencher nomes dos integrantes]
+Repositório: https://github.com/CaririDev/ci-docker-api-crud
+
+
+1. PESQUISA INICIAL
+
+4.1 O que é um Runner?
+
+Um Runner é o ambiente de execução responsável por receber e executar os
+comandos definidos em um pipeline de CI/CD. Ele faz o checkout do código,
+instala as dependências, executa o lint, roda os testes e realiza outras etapas
+definidas no arquivo YAML.
+
+No GitHub Actions, quando usamos um Runner hospedado pelo GitHub, o código é
+executado em uma máquina virtual temporária mantida pelo próprio GitHub. Neste
+projeto, o pipeline utiliza o Runner ubuntu-latest. O ambiente é criado para a
+execução do job e depois é descartado, o que ajuda a garantir que cada execução
+comece em um ambiente limpo e reproduzível.
+
+
+4.2 O que é Linting e por que executá-lo antes dos testes?
+
+Linting é a análise estática do código-fonte. A ferramenta examina os arquivos
+sem executar a aplicação e procura problemas como erros de sintaxe, referências
+a nomes inexistentes e algumas inconsistências estruturais.
+
+Neste projeto usamos o Flake8. Executar o lint antes dos testes aplica o
+princípio de falhar rápido: erros simples são detectados antes de consumir tempo
+com a execução completa da suíte de testes e com a construção da imagem Docker.
+Assim, o Runner utiliza menos processamento e o feedback para a equipe chega
+mais rapidamente.
+
+
+4.3 Diferença entre Máquina Virtual e Contêiner Docker
+
+Uma máquina virtual simula um computador completo e normalmente executa um
+sistema operacional convidado sobre um hypervisor. Por isso, costuma consumir
+mais memória e espaço e demora mais para iniciar.
+
+Um contêiner Docker isola processos e suas dependências, mas compartilha o
+kernel do sistema operacional hospedeiro. Por ser mais leve, ele inicia mais
+rapidamente e permite empacotar a aplicação com as bibliotecas e configurações
+necessárias.
+
+O Docker se tornou muito utilizado em entregas contínuas porque fornece uma
+imagem reproduzível, portátil e imutável. A mesma imagem pode ser testada no
+Runner e executada em outro ambiente, reduzindo diferenças entre as máquinas de
+desenvolvimento, teste e produção. As imagens também facilitam versionamento,
+rollback e automação do deploy.
+
+
+2. IMPLEMENTAÇÃO DA APLICAÇÃO
+
+Foi implementada uma API Flask com uma rota de soma:
+
+GET /api/soma?a=10&b=5
+
+A rota recebe os parâmetros a e b pela query string. Como esses valores chegam
+como texto em uma requisição HTTP, o Flask faz a conversão para número decimal.
+Quando os dois valores são válidos, a API retorna status HTTP 200 e um JSON como
+este:
+
+{"resultado": 15}
+
+Quando um dos parâmetros está ausente ou não é numérico, a API retorna status
+HTTP 400 e informa o erro ao cliente.
+
+Também foram preservadas as demais funcionalidades CRUD da aplicação, o
+endpoint /health, o Dockerfile e o pipeline existente.
+
+
+3. TESTE AUTOMATIZADO DA ROTA /api/soma
+
+O teste utiliza o cliente de testes do Flask, sem precisar iniciar um servidor
+real. Ele chama:
+
+client.get("/api/soma?a=10&b=5")
+
+Em seguida, verifica se:
+
+- o status da resposta é 200; e
+- o campo resultado do JSON é igual a 15.
+
+Também foi criado um teste para verificar se valores ausentes ou inválidos
+resultam em status 400. A suíte atual possui seis testes e todos foram
+aprovados localmente.
+
+
+4. QUESTÕES PARA ANÁLISE
+
+4.1 Efeito do pipeline sobre o Lead Time
+
+Lead Time é o tempo entre o início de uma solicitação, como um commit, e a
+entrega de um resultado validado. No processo manual, a equipe poderia esperar
+pela execução manual dos testes, pela revisão, pela construção do pacote e pelo
+deploy. Essas esperas e transferências aumentam o Lead Time e podem fazer o
+processo durar horas ou dias.
+
+Com o ci-pipeline.yml, essas etapas são disparadas automaticamente a cada push
+ou pull request. O código é baixado, analisado, testado e empacotado em uma
+sequência padronizada. Portanto, o Lead Time passa a ser aproximadamente o
+tempo de fila do Runner mais o tempo de lint, testes e build Docker, normalmente
+medido em minutos.
+
+Uma forma de representar a redução é:
+
+Lead Time CI = fila + lint + testes + build + verificações
+Redução = Lead Time manual - Lead Time CI
+
+O percentual exato depende dos tempos medidos pela equipe. O ponto principal é
+que a automação reduz esperas e trabalho manual, além de fornecer feedback mais
+cedo.
+
+
+4.2 Por que Linting e testes vêm antes do docker build?
+
+Linting e testes são executados antes do docker build porque são verificações
+rápidas e capazes de interromper o pipeline quando existe um erro. Se o código
+falhar no lint ou nos testes, não faz sentido gastar tempo e processamento
+construindo uma imagem Docker que não será utilizada.
+
+Se a ordem fosse invertida, cada erro encontrado depois do build provocaria um
+desperdício de CPU, memória, tempo de download de dependências e armazenamento
+temporário do Runner. A ordem atual segue o princípio de falhar rápido e reduz o
+custo das execuções com defeito.
+
+
+4.3 Como o Dockerfile reduz o Muro da Confusão?
+
+As linhas abaixo tornam as dependências da aplicação explícitas e reproduzíveis:
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+O requirements.txt registra as versões esperadas das bibliotecas, e o Dockerfile
+instala essas dependências dentro da imagem. Dessa forma, a equipe de Operações
+não precisa reproduzir manualmente o ambiente usado pela equipe de
+Desenvolvimento.
+
+Além disso, o Docker aproveita a camada criada a partir do requirements.txt. Se
+apenas o código da aplicação mudar, a camada de dependências pode ser reutilizada
+no build seguinte. O resultado é uma imagem padronizada, imutável e pronta para
+ser executada em qualquer ambiente compatível com Docker.
+
+
+5. FUNCIONAMENTO DO PIPELINE
+
+O workflow é acionado em push e pull request para as branches main e master.
+As principais etapas são:
+
+1. Baixar o código com actions/checkout.
+2. Configurar o Python no Runner Ubuntu.
+3. Instalar as dependências de desenvolvimento.
+4. Executar o Flake8 para validação estática.
+5. Executar os testes automatizados com Pytest.
+6. Construir a imagem Docker.
+7. Iniciar um contêiner e verificar o endpoint /health.
+8. Publicar no Docker Hub somente quando os secrets necessários estiverem
+   configurados e a execução ocorrer na branch main.
+
+
+6. EVIDÊNCIAS PARA O VÍDEO
+
+Os itens abaixo devem ser demonstrados na aba Actions do GitHub e incluídos na
+gravação:
+
+[ ] Execução que falhou após a introdução proposital de um bug na soma.
+[ ] Log do Pytest mostrando o teste com erro.
+[ ] Correção do bug e novo push.
+[ ] Execução corrigida com todos os jobs verdes.
+[ ] Explicação da rota /api/soma e do teste correspondente.
+[ ] Participação de todos os integrantes do grupo.
+
+O bug proposital deve ser corrigido depois da demonstração. O repositório deve
+permanecer com o código correto e com o pipeline verde ao final da entrega.
+
+
+7. CONCLUSÃO
+
+A prática demonstra o fluxo de Integração Contínua: cada alteração no código
+passa por validação estática, testes automatizados e construção de uma imagem
+Docker. Com isso, erros são identificados antes da entrega e o mesmo artefato
+testado pode ser levado para um ambiente de execução.

@@ -83,6 +83,21 @@ def health():
     return jsonify(service="ci-docker-api", status="ok")
 
 
+@app.get("/api/soma")
+def sum_values():
+    """Soma dois números recebidos como parâmetros de query string."""
+    first = request.args.get("a", type=float)
+    second = request.args.get("b", type=float)
+
+    if first is None or second is None:
+        return jsonify(error="Informe os parâmetros numéricos a e b."), 400
+
+    result = first + second
+    if result.is_integer():
+        result = int(result)
+    return jsonify(resultado=result)
+
+
 @app.get("/api/items")
 def list_items():
     with get_db() as db:

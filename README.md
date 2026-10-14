@@ -38,6 +38,7 @@ Depois, acesse `http://localhost:5000/` para abrir o painel CRUD ou `http://loca
 
 | Método | Endpoint | Função |
 | --- | --- | --- |
+| GET | `/api/soma?a=10&b=5` | Soma dois números |
 | GET | `/api/items` | Lista os itens |
 | GET | `/api/items/<id>` | Consulta um item |
 | POST | `/api/items` | Cria um item |

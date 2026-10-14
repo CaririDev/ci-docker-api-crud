@@ -30,6 +30,20 @@ def test_health_check_returns_ok(client):
     }
 
 
+def test_sum_endpoint_returns_result(client):
+    response = client.get("/api/soma?a=10&b=5")
+
+    assert response.status_code == 200
+    assert response.get_json()["resultado"] == 15
+
+
+def test_sum_endpoint_rejects_missing_or_invalid_values(client):
+    response = client.get("/api/soma?a=dez&b=5")
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Informe os parâmetros numéricos a e b."
+
+
 def test_items_crud(client):
     listed = client.get("/api/items")
     assert listed.status_code == 200
