@@ -2,9 +2,12 @@ ESTUDO GUIADO 02
 PIPELINE DEVSECOPS: SEGURANÇA CONTÍNUA, FEATURE FLAGS E RELEASE AUTOMATIZADO
 
 Disciplina: Integração de Sistemas
-Grupo: [preencher nomes dos integrantes]
+Grupo: José Junio de Souza Matias - Matrícula: 2025014028
+ José Railson Leite da Silva - Matrícula: 2025019392
+ Marcos Felipe Ferreira Duarte - Matrícula : 2025014117
+
 Repositório: https://github.com/CaririDev/ci-docker-api-crud
-Data da validação local: 10/11/2026
+
 
 
 4. PESQUISA INICIAL
