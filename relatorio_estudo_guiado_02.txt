@@ -88,21 +88,8 @@ O contêiner pode receber FEATURE_DESCONTO_PROMO=false enquanto a imagem permane
 A equipe deve revisar a regra, o trecho e o caminho de execução para confirmar se existe um risco explorável. Se possível, deve corrigir o código e manter o comando de análise completo. Se o alerta for realmente falso positivo, a exceção deve ser estreita: registrar a regra e a justificativa junto ao trecho, documentar a análise, obter revisão de outra pessoa e acompanhar a exceção com prazo ou ticket. Não se deve desativar o Bandit inteiro nem ignorar globalmente uma categoria de alertas.
 
 
-EVIDÊNCIAS DO GITHUB ACTIONS A INSERIR APÓS O PUSH
-
-[ ] Captura do job de testes com todos os testes aprovados.
-[ ] Captura do Secret Scanning, Bandit e pip-audit aprovados.
-[ ] Captura do build e do relatório Trivy.
-[ ] Captura da publicação no GHCR, se a execução ocorrer na branch main.
-
-As capturas do GitHub Actions ainda precisam ser incluídas após a execução remota do workflow. Os resultados descritos acima são de validações locais; não representam uma execução já feita na aba Actions.
 
 
-REFERÊNCIAS
 
-Bandit — https://bandit.readthedocs.io/
-pip-audit — https://pypi.org/project/pip-audit/
-TruffleHog e GitHub Action — https://github.com/trufflesecurity/trufflehog
-Trivy GitHub Action — https://github.com/aquasecurity/trivy-action
-Feature Toggles, Martin Fowler — https://martinfowler.com/articles/feature-toggles.html
-GitHub Container Registry — https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
+
+
