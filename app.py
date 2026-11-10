@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 import os
 import sqlite3
@@ -8,6 +9,9 @@ from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", "data/items.db"))
+DISCOUNT_ENV_NAME = "FEATURE_DESCONTO_PROMO"
+DISCOUNT_PERCENT = Decimal("10")
+MAX_DISCOUNTABLE_AMOUNT = Decimal("999999999.99")
 
 
 def get_db():
@@ -68,6 +72,15 @@ def validate_payload(payload, current=None):
     return {"name": name, "description": description, "status": status}, None
 
 
+def discount_feature_enabled():
+    """Consulta o valor da flag em cada solicitação."""
+    return os.getenv(DISCOUNT_ENV_NAME, "false").strip().lower() == "true"
+
+
+def as_money(value):
+    return float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
 init_db()
 
 
@@ -83,6 +96,16 @@ def health():
     return jsonify(service="ci-docker-api", status="ok")
 
 
+@app.get("/api/status")
+def api_status():
+    """Expõe o estado da API e da flag promocional para diagnóstico."""
+    return jsonify(
+        service="fastorder-api",
+        status="ok",
+        feature_flags={"desconto_promo": discount_feature_enabled()},
+    )
+
+
 @app.get("/api/soma")
 def sum_values():
     """Soma dois números recebidos como parâmetros de query string."""
@@ -96,6 +119,39 @@ def sum_values():
     if result.is_integer():
         result = int(result)
     return jsonify(resultado=result)
+
+
+@app.get("/api/desconto")
+def calculate_discount():
+    """Aplica o desconto promocional de 10% quando a flag está habilitada."""
+    if not discount_feature_enabled():
+        return jsonify(error="Funcionalidade indisponível."), 404
+
+    raw_amount = request.args.get("valor")
+    try:
+        amount = Decimal(raw_amount)
+    except (InvalidOperation, TypeError):
+        return jsonify(error="Informe um valor numérico não negativo."), 400
+
+    if (
+        not amount.is_finite()
+        or amount < 0
+        or amount > MAX_DISCOUNTABLE_AMOUNT
+    ):
+        return jsonify(error="Informe um valor numérico não negativo."), 400
+
+    amount = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    discount = (amount * DISCOUNT_PERCENT / Decimal("100")).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    final_amount = amount - discount
+
+    return jsonify(
+        valor_original=as_money(amount),
+        percentual_desconto=int(DISCOUNT_PERCENT),
+        desconto=as_money(discount),
+        valor_final=as_money(final_amount),
+    )
 
 
 @app.get("/api/items")
@@ -169,5 +225,4 @@ def delete_item(item_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
-
+    app.run(host=os.getenv("FLASK_HOST", "localhost"), port=5000, debug=False)

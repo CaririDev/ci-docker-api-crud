@@ -1,0 +1,105 @@
+ESTUDO GUIADO 02
+PIPELINE DEVSECOPS: SEGURANÇA CONTÍNUA, FEATURE FLAGS E RELEASE AUTOMATIZADO
+
+Disciplina: Integração de Sistemas
+Grupo: [preencher nomes dos integrantes]
+Repositório: https://github.com/CaririDev/ci-docker-api-crud
+Data da validação local: 10/11/2026
+
+
+4. PESQUISA INICIAL
+
+4.1 Diferença entre SAST e SCA
+
+SAST (Static Application Security Testing) examina o código-fonte sem executar a aplicação. Ferramentas como Bandit procuram padrões de implementação que podem criar riscos, por exemplo, chamadas perigosas, configurações inseguras e uso inadequado de bibliotecas. O resultado depende da regra detectada e do contexto: alguns achados podem ser falsos positivos e precisam de revisão.
+
+SCA (Software Composition Analysis) inventaria as dependências declaradas ou instaladas e compara os pacotes e suas versões com bases de avisos de segurança. A SCA ajuda a identificar vulnerabilidades conhecidas em bibliotecas de terceiros e a localizar uma versão corrigida.
+
+Log4Shell é uma vulnerabilidade da biblioteca Java Log4j. Em um projeto que utiliza uma versão vulnerável dessa dependência, uma ferramenta SCA que reconheça o ecossistema Java pode identificar a versão afetada. O Bandit, voltado à análise estática de código Python, não é a ferramenta adequada para detectar Log4Shell.
+
+4.2 Secret Scanning e histórico Git
+
+Secret Scanning procura credenciais, tokens, chaves de API e outros segredos em arquivos e commits. TruffleHog compara padrões e, quando possível, verifica se uma credencial detectada ainda é válida.
+
+Apagar uma chave em um novo commit não remove o commit anterior: o valor pode continuar acessível no histórico, em clones, forks, caches ou cópias já feitas por terceiros. A resposta imediata é revogar ou rotacionar a credencial e revisar seu uso. Reescrever o histórico pode reduzir a exposição futura, mas não substitui a revogação da chave que já vazou.
+
+4.3 Deployment, Release e Dark Launching
+
+Deployment é disponibilizar uma versão do código em um ambiente, como produção. Release é tornar a funcionalidade disponível para os usuários. As duas ações podem ocorrer em momentos diferentes.
+
+Com uma feature flag, a equipe pode fazer deploy do código novo com a opção desativada. A rota existe na imagem, mas o comportamento promocional permanece bloqueado. Isso é Dark Launching: o código está em produção e pode ser verificado de forma controlada sem liberar a funcionalidade ao público. A equipe ativa a flag quando estiver pronta para o release e pode desativá-la se precisar interromper a promoção.
+
+
+5. IMPLEMENTAÇÃO DA APLICAÇÃO
+
+A rota GET /api/desconto?valor=100 aplica 10% de desconto somente quando FEATURE_DESCONTO_PROMO está definida como true. O valor padrão é false. Com a flag desligada, a rota responde HTTP 404. Valores ausentes, inválidos, negativos ou fora do limite aceito respondem HTTP 400.
+
+A rota GET /api/status informa o estado da API e da flag promocional. O cálculo usa Decimal e arredondamento a centavos para evitar os erros de precisão típicos de operações monetárias com ponto flutuante.
+
+A aplicação lê a variável de ambiente a cada solicitação. No Docker Compose, a flag pode ser configurada sem reconstruir a imagem; o contêiner deve ser recriado ou reiniciado para receber um ambiente alterado. Isso não exige rollback nem uma nova imagem da aplicação.
+
+
+6. TESTES AUTOMATIZADOS DA FEATURE FLAG
+
+Os testes cobrem a flag nos dois estados. Com FEATURE_DESCONTO_PROMO=true, o teste envia valor 100 e verifica 10 de desconto e total 90. Com a flag false, verifica que a rota não libera a promoção e retorna 404. Outros casos verificam a flag em /api/status e a rejeição de valores inválidos ou excessivos.
+
+Resultado local em 10/11/2026: pytest -v executou 15 testes; 15 passaram.
+
+
+7. RESULTADOS LOCAIS DOS SECURITY SCANS
+
+SAST — Bandit:
+O código anterior iniciava o servidor de desenvolvimento com host 0.0.0.0. Esse bind pode ser sinalizado pela regra B104. O servidor de desenvolvimento agora usa localhost; o contêiner continua acessível externamente por meio do Gunicorn, cujo bind 0.0.0.0 é necessário para publicação da porta Docker. O comando completo bandit -r app.py foi mantido. Resultado local após a correção: nenhum problema identificado.
+
+SCA — pip-audit:
+As dependências da aplicação foram atualizadas para Flask 3.1.3 e Gunicorn 26.2.0. O comando pip-audit -r requirements.txt terminou com “No known vulnerabilities found”. Bandit e pip-audit permanecem em requirements-dev.txt para não serem incluídos na imagem de produção.
+
+Secret Scanning — TruffleHog:
+A varredura local do histórico Git com TruffleHog 3.99.8 terminou com zero segredos verificados e zero não verificados.
+
+Imagem — Trivy:
+A imagem usa python:3.12-slim. O Dockerfile executa apt-get update e apt-get upgrade e atualiza pip e setuptools antes de instalar as bibliotecas da aplicação. A varredura local filtrada para HIGH e CRITICAL encontrou 48 achados HIGH e nenhum CRITICAL. Muitos achados HIGH eram de pacotes Debian sem versão corrigida indicada pelo scanner. Para seguir a alternativa prevista no roteiro da prática, o workflow mantém CRITICAL como bloqueio do Trivy. Isso significa que os achados HIGH continuam registrados e devem ser reavaliados quando houver versões corrigidas; não significa que a imagem esteja sem vulnerabilidades.
+
+O build Docker local terminou e o contêiner respondeu ao endpoint /health. Com a flag habilitada por variável de ambiente, /api/status indicou a flag ativa e a rota de desconto retornou valor final 90 para uma compra de 100.
+
+
+8. FUNCIONAMENTO DO PIPELINE
+
+O arquivo .github/workflows/devsecops-pipeline.yml executa lint e testes em um job e, em outro job, roda em sequência TruffleHog, Bandit e pip-audit. O job build-and-push depende de lint-and-test e security-scans. Portanto, uma falha em qualquer dependência bloqueia o build e impede que a imagem chegue ao GHCR.
+
+Depois das dependências aprovadas, o workflow constrói a imagem, executa Trivy e só então publica no GHCR. A publicação ocorre somente em push para main. O job de publicação tem permissão packages: write e usa GITHUB_TOKEN.
+
+
+10. QUESTÕES PARA ANÁLISE
+
+10.1 Dependência entre os scans e a publicação
+
+A instrução needs: [lint-and-test, security-scans] faz o job de build aguardar os dois jobs e impede sua execução se qualquer um falhar. Como Bandit e pip-audit são etapas do mesmo job security-scans, uma falha encerra esse job antes da publicação. O Trivy também precisa aprovar a imagem antes das etapas de login e push. Assim, uma imagem com um scan bloqueante reprovado não é publicada no registro.
+
+10.2 Desativar uma promoção sem rollback da imagem
+
+O contêiner pode receber FEATURE_DESCONTO_PROMO=false enquanto a imagem permanece a mesma. A aplicação consulta a configuração e deixa a rota de desconto indisponível, interrompendo a promoção sem reverter o código ou construir outra imagem. Em plataformas nas quais as variáveis são injetadas na criação do contêiner, a mudança pode exigir reinício ou recriação do processo; ainda assim, não exige rebuild da imagem nem rollback da versão da aplicação.
+
+10.3 Tratamento de falsos positivos do SAST
+
+A equipe deve revisar a regra, o trecho e o caminho de execução para confirmar se existe um risco explorável. Se possível, deve corrigir o código e manter o comando de análise completo. Se o alerta for realmente falso positivo, a exceção deve ser estreita: registrar a regra e a justificativa junto ao trecho, documentar a análise, obter revisão de outra pessoa e acompanhar a exceção com prazo ou ticket. Não se deve desativar o Bandit inteiro nem ignorar globalmente uma categoria de alertas.
+
+
+EVIDÊNCIAS DO GITHUB ACTIONS A INSERIR APÓS O PUSH
+
+[ ] Captura do job de testes com todos os testes aprovados.
+[ ] Captura do Secret Scanning, Bandit e pip-audit aprovados.
+[ ] Captura do build e do relatório Trivy.
+[ ] Captura da publicação no GHCR, se a execução ocorrer na branch main.
+
+As capturas do GitHub Actions ainda precisam ser incluídas após a execução remota do workflow. Os resultados descritos acima são de validações locais; não representam uma execução já feita na aba Actions.
+
+
+REFERÊNCIAS
+
+Bandit — https://bandit.readthedocs.io/
+pip-audit — https://pypi.org/project/pip-audit/
+TruffleHog e GitHub Action — https://github.com/trufflesecurity/trufflehog
+Trivy GitHub Action — https://github.com/aquasecurity/trivy-action
+Feature Toggles, Martin Fowler — https://martinfowler.com/articles/feature-toggles.html
+GitHub Container Registry — https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
