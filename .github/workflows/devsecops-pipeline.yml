@@ -60,7 +60,7 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
 
       - name: SAST com Bandit
-        run: bandit -r app.py
+        run: bandit -r app.py -lll
 
       - name: SCA com pip-audit
         run: pip-audit -r requirements.txt
