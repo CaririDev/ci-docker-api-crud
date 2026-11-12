@@ -7,6 +7,7 @@ from app import app
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DATABASE_PATH", tmp_path / "test.db")
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "false")
     app_module.init_db()
     app.config.update(TESTING=True)
     with app.test_client() as test_client:
@@ -30,6 +31,17 @@ def test_health_check_returns_ok(client):
     }
 
 
+def test_api_status_reports_discount_flag_disabled_by_default(client):
+    response = client.get("/api/status")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "service": "fastorder-api",
+        "status": "ok",
+        "feature_flags": {"desconto_promo": False},
+    }
+
+
 def test_sum_endpoint_returns_result(client):
     response = client.get("/api/soma?a=10&b=5")
 
@@ -42,6 +54,41 @@ def test_sum_endpoint_rejects_missing_or_invalid_values(client):
 
     assert response.status_code == 400
     assert response.get_json()["error"] == "Informe os parâmetros numéricos a e b."
+
+
+def test_discount_endpoint_applies_discount_when_flag_is_enabled(
+    client, monkeypatch
+):
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "true")
+
+    response = client.get("/api/desconto?valor=100")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "valor_original": 100.0,
+        "percentual_desconto": 10,
+        "desconto": 10.0,
+        "valor_final": 90.0,
+    }
+
+
+def test_discount_endpoint_is_hidden_when_flag_is_disabled(client):
+    response = client.get("/api/desconto?valor=100")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Funcionalidade indisponível."}
+
+
+@pytest.mark.parametrize("value", ["", "abc", "-5", "NaN", "Infinity", "1E100"])
+def test_discount_endpoint_rejects_invalid_values(client, monkeypatch, value):
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "true")
+
+    response = client.get(f"/api/desconto?valor={value}")
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "Informe um valor numérico não negativo."
+    }
 
 
 def test_items_crud(client):
@@ -82,4 +129,3 @@ def test_item_requires_name(client):
 
     assert response.status_code == 400
     assert response.get_json()["error"] == "O nome é obrigatório."
-

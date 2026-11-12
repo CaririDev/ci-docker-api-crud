@@ -1,78 +1,46 @@
-# Pipeline CI: Integração Contínua, Testes e Deploy com Docker
+# FastOrder API: DevSecOps, Feature Flags e Docker
 
-Exemplo de uma API REST pequena em Flask com CRUD, interface web e pipeline de integração contínua.
-
-## Estrutura
-
-```text
-.
-├── .github/workflows/ci.yml  # pipeline CI/CD
-├── tests/test_app.py         # testes automatizados
-├── app.py                    # API Flask
-├── templates/index.html      # página web do CRUD
-├── static/style.css          # estilos da página
-├── static/app.js             # comportamento da página
-├── Dockerfile                # imagem de produção
-├── docker-compose.yml        # execução local com Docker
-├── requirements.txt          # dependências da aplicação
-├── requirements-dev.txt      # dependências de desenvolvimento
-└── .dockerignore
-```
+API Flask com operações CRUD, endpoint de soma, cálculo promocional protegido por feature flag e pipeline DevSecOps no GitHub Actions.
 
 ## Executar localmente
 
-Requer Python 3.11+.
+Requer Python 3.12 ou superior.
 
-```bash
 python -m venv .venv
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements-dev.txt
-pytest -q
+No Windows PowerShell: .\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
+pytest -v
 python app.py
-```
 
-Depois, acesse `http://localhost:5000/` para abrir o painel CRUD ou `http://localhost:5000/health` para verificar a saúde da API.
+Acesse http://localhost:5000/, http://localhost:5000/health ou http://localhost:5000/api/status.
 
-## Endpoints CRUD
+## Feature flag do desconto
 
-| Método | Endpoint | Função |
-| --- | --- | --- |
-| GET | `/api/soma?a=10&b=5` | Soma dois números |
-| GET | `/api/items` | Lista os itens |
-| GET | `/api/items/<id>` | Consulta um item |
-| POST | `/api/items` | Cria um item |
-| PUT | `/api/items/<id>` | Atualiza um item |
-| DELETE | `/api/items/<id>` | Exclui um item |
+A rota GET /api/desconto?valor=100 concede 10% de desconto somente quando FEATURE_DESCONTO_PROMO=true. O padrão é false; enquanto estiver desativada, a rota responde HTTP 404. O endpoint /api/status informa se a flag está ativa.
 
-Os registros são armazenados em SQLite no volume `api_data` do Docker Compose. A página já carrega três itens de exemplo na primeira execução.
+Para experimentar no PowerShell, defina $env:FEATURE_DESCONTO_PROMO = "true" antes de executar python app.py.
 
-## Executar com Docker
+No Docker Compose, defina a variável no ambiente antes de iniciar ou use um arquivo .env local baseado em .env.example. O arquivo .env é ignorado pelo Git. Ao mudar a configuração do Compose, recrie o contêiner para que ele receba o novo ambiente; a imagem não precisa ser reconstruída.
 
-```bash
+## Verificações de segurança locais
+
+bandit -r app.py
+pip-audit -r requirements.txt
+
+A configuração mantém Bandit e pip-audit em requirements-dev.txt, fora da imagem de produção. O pip-audit verifica as dependências usadas pela aplicação em requirements.txt.
+
+## Docker
+
 docker compose up --build
-```
 
-Teste a aplicação:
+O Dockerfile atualiza os pacotes do sistema antes da instalação das dependências. A aplicação roda como usuário sem privilégios. Para testar a imagem localmente, execute docker build -t fastorder-api:local . e docker run --rm -p 5000:5000 fastorder-api:local.
 
-```bash
-curl http://localhost:5000/health
-```
+## Pipeline DevSecOps
 
-Resposta esperada:
+.github/workflows/devsecops-pipeline.yml roda lint e testes, depois executa em sequência:
 
-```json
-{"service":"ci-docker-api","status":"ok"}
-```
+1. Secret scanning do histórico Git com TruffleHog.
+2. SAST do código Python com Bandit.
+3. SCA das dependências de produção com pip-audit.
 
-## Como funciona o pipeline
-
-O arquivo `.github/workflows/ci.yml` é executado em cada `push` e `pull request`:
-
-1. Instala as dependências e executa os testes com `pytest`.
-2. Constrói a imagem Docker.
-3. Inicia um container e verifica o endpoint `/health`.
-4. Na branch `main`, publica a imagem no Docker Hub quando os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` estão configurados.
-
-Para configurar o deploy, abra `Settings > Secrets and variables > Actions` no repositório e crie os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN`. A imagem será publicada como `SEU_USUARIO/ci-docker-api` no Docker Hub. Sem esses secrets, os testes e o build continuam funcionando e o deploy é ignorado.
-
+Build e Trivy só começam se os testes e os três scans forem aprovados. A imagem só é publicada no GitHub Container Registry (GHCR) em push para main, após o scan Trivy. O job usa GITHUB_TOKEN; não requer PAT nem credenciais extras. A primeira publicação pode criar o pacote GHCR como privado, então ajuste a visibilidade do pacote em GitHub Packages se a entrega exigir acesso público.
