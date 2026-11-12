@@ -225,4 +225,4 @@ def delete_item(item_id):
 
 
 if __name__ == "__main__":
-    host="0.0.0.0"
+    app.run(host=os.getenv("FLASK_HOST", "localhost"), port=5000, debug=False)
